@@ -1,3 +1,5 @@
+package urlshortener
+
 import com.mongodb.client.result.DeleteResult
 import org.mongodb.scala._
 import org.mongodb.scala.bson.ObjectId
@@ -7,8 +9,9 @@ import scala.concurrent.duration.Duration
 import scala.annotation.tailrec
 import scala.util.Random
 import java.net.URL
+import com.typesafe.scalalogging.LazyLogging
 
-class UrlShortener(uri: String, dbName: String, collection: String) {
+class UrlShortener(uri: String, dbName: String, collection: String) extends LazyLogging {
   val mongoClient: MongoClient = MongoClient(uri)
   val database: MongoDatabase = mongoClient.getDatabase(dbName)
   val urlCollection: MongoCollection[Document] = database.getCollection(collection)
@@ -20,12 +23,15 @@ class UrlShortener(uri: String, dbName: String, collection: String) {
       val short = getNextUniqueKey
       val mappingToInsert = Document("_id" -> new ObjectId(), "short" -> short, "url" -> url.toString())
       Await.result(urlCollection.insertOne(mappingToInsert).toFuture(), Duration.Inf)
+      logger.info(s"Shortened URL: $url -> $short")
       short
     }
   }
 
   def getUrl(short: String): Option[URL] = {
-    getDocumentByShort(short).map(document => new URL(document.getString("url")))
+    val url = getDocumentByShort(short).map(document => new URL(document.getString("url")))
+    logger.info(s"Get URL by short: $short -> result: ${url.getOrElse("Not found")}")
+    url
   }
 
   private def getDocumentByUrl(url: String): Option[Document] = {
@@ -36,12 +42,24 @@ class UrlShortener(uri: String, dbName: String, collection: String) {
     Await.result(urlCollection.find(equal("short", short)).first().toFutureOption(), Duration.Inf)
   }
 
+  private def deleteResultMessage(result: DeleteResult): String = {
+    if (result.wasAcknowledged()) {
+      s"Deleted ${result.getDeletedCount} document(s)."
+    } else {
+      "Delete request was not acknowledged."
+    }
+  }
+
   def deleteByUrl(url: String): DeleteResult = {
-    Await.result(urlCollection.deleteOne(equal("url", url)).toFuture(), Duration.Inf)
+    val result = Await.result(urlCollection.deleteOne(equal("url", url)).toFuture(), Duration.Inf)
+    logger.info(s"Deleted by URL: $url -> result: ${deleteResultMessage(result)}")
+    result
   }
 
   def deleteByShort(short: String): DeleteResult = {
-    Await.result(urlCollection.deleteOne(equal("short", short)).toFuture(), Duration.Inf)
+    val result = Await.result(urlCollection.deleteOne(equal("short", short)).toFuture(), Duration.Inf)
+    logger.info(s"Deleted by Short: $short -> result: ${deleteResultMessage(result)}")
+    result
   }
 
   private def getNextUniqueKey: String = {
