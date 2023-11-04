@@ -10,5 +10,5 @@ object Main extends App {
 
   val us = new UrlShortener(mongoUri, mongoDbName, mongoCollection)
 
-  ApiService.startServer(serverAddress, serverPort, us)
+  new ApiService(serverAddress, serverPort, us)
 }

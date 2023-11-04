@@ -5,9 +5,10 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.Uri
 import com.mongodb.client.result.DeleteResult
 import java.net.URL
+import scala.concurrent.duration.Duration
+import scala.concurrent.Await
 
-object ApiService {
-  import system.dispatcher
+class ApiService(serverAddress: String, serverPort: Int, us: UrlShortener) {
 
   implicit val system: ActorSystem = ActorSystem("url-shortener-system")
 
@@ -19,40 +20,38 @@ object ApiService {
     }
   }
 
-  def startServer(serverAddress: String, serverPort: Int, us: UrlShortener): Unit = {
-    val route =
-      path("getShort") {
+  val route =
+    path("getShort") {
+      parameter("url") { urlString =>
+        val short = us.shortenUrl(new URL(urlString))
+        complete(s"http://$serverAddress:$serverPort/$short")
+      }
+    } ~
+      path("deleteByUrl") {
         parameter("url") { urlString =>
-          val short = us.shortenUrl(new URL(urlString))
-          complete(s"http://$serverAddress:$serverPort/$short")
+          val deleteResult = us.deleteByUrl(urlString)
+          complete(deleteResultMessage(deleteResult))
         }
       } ~
-        path("deleteByUrl") {
-          parameter("url") { urlString =>
-            val deleteResult = us.deleteByUrl(urlString)
-            complete(deleteResultMessage(deleteResult))
-          }
-        } ~
-        path("deleteByShort") {
-          parameter("short") { short =>
-            val deleteResult = us.deleteByShort(short)
-            complete(deleteResultMessage(deleteResult))
-          }
-        } ~
-        path(Segment) { short =>
-          us.getUrl(short) match {
-            case Some(url) => redirect(Uri(url.toString()), StatusCodes.PermanentRedirect)
-            case None      => complete(StatusCodes.NotFound, "Short URL not found.")
-          }
+      path("deleteByShort") {
+        parameter("short") { short =>
+          val deleteResult = us.deleteByShort(short)
+          complete(deleteResultMessage(deleteResult))
         }
+      } ~
+      path(Segment) { short =>
+        us.getUrl(short) match {
+          case Some(url) => redirect(Uri(url.toString()), StatusCodes.PermanentRedirect)
+          case None      => complete(StatusCodes.NotFound, "Short URL not found.")
+        }
+      }
 
-    val server = Http().newServerAt(serverAddress, serverPort).bind(route)
+  val serverFuture = Http().newServerAt(serverAddress, serverPort).bind(route)
+  val serverBinding = Await.result(serverFuture, Duration.Inf)
 
-    println("Server online. Press RETURN to stop.")
-    scala.io.StdIn.readLine()
+  println(
+    s"Server started at http://${serverBinding.localAddress.getHostString}:${serverBinding.localAddress.getPort}"
+  )
 
-    server
-      .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
-  }
+  Await.result(serverBinding.whenTerminated, Duration.Inf)
 }

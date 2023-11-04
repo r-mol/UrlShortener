@@ -10,5 +10,8 @@ COPY . .
 # Build the project
 RUN sbt compile
 
+# Expose the server's port
+EXPOSE 8080
+
 # Run the project
 CMD sbt run

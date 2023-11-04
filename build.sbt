@@ -23,6 +23,12 @@ lazy val root = (project in file("."))
       scalaTest,
       mongoScalaDriver,
       akkaHttp,
-      "com.typesafe" % "config" % "1.4.1"
+      "com.typesafe" % "config" % "1.4.1",
+      "com.typesafe.akka" %% "akka-http" % "10.2.4",
+      "com.softwaremill.sttp.tapir" %% "tapir-core" % "0.17.0",
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % "0.17.0",
+      "com.softwaremill.sttp.tapir" %% "tapir-akka-http-server" % "0.17.0",
+      "io.circe" %% "circe-generic" % "0.13.0",
+      "io.circe" %% "circe-parser" % "0.13.0"
     )
   )
