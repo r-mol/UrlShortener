@@ -1,23 +1,17 @@
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directives._
 import com.mongodb.client.result.DeleteResult
 import org.mongodb.scala._
 import org.mongodb.scala.bson.ObjectId
 import org.mongodb.scala.model.Filters._
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import java.net.URL
 import scala.annotation.tailrec
 import scala.util.Random
-import akka.http.scaladsl.model.Uri
+import java.net.URL
 
-object UrlShortener {
-  val mongoClient: MongoClient = MongoClient("mongodb+srv://TestUser:TestPassword@cluster85675.wp3r08d.mongodb.net")
-  val database: MongoDatabase = mongoClient.getDatabase("urlDB")
-  val urlCollection: MongoCollection[Document] = database.getCollection("url_collection")
+class UrlShortener(uri: String, dbName: String, collection: String) {
+  val mongoClient: MongoClient = MongoClient(uri)
+  val database: MongoDatabase = mongoClient.getDatabase(dbName)
+  val urlCollection: MongoCollection[Document] = database.getCollection(collection)
 
   private val allowedChars = (('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9')).toList
 
@@ -82,62 +76,4 @@ object UrlShortener {
 
     loop(Nil, length).mkString
   }
-}
-
-object ApiService {
-
-  import UrlShortener._
-
-  implicit val system: ActorSystem = ActorSystem("url-shortener-system")
-
-  import system.dispatcher
-
-  def deleteResultMessage(result: DeleteResult): String = {
-    if (result.wasAcknowledged()) {
-      s"Deleted ${result.getDeletedCount} document(s)."
-    } else {
-      "Delete request was not acknowledged."
-    }
-  }
-
-  val route =
-    path("getShort") {
-      parameter("url") { urlString =>
-        val short = shortenUrl(new URL(urlString))
-        complete(s"http://127.0.0.1/$short")
-      }
-    } ~
-      path("deleteByUrl") {
-        parameter("url") { urlString =>
-          val deleteResult = deleteByUrl(urlString)
-          complete(deleteResultMessage(deleteResult))
-        }
-      } ~
-      path("deleteByShort") {
-        parameter("short") { short =>
-          val deleteResult = deleteByShort(short)
-          complete(deleteResultMessage(deleteResult))
-        }
-      } ~
-      path(Segment) { short =>
-        getUrl(short) match {
-          case Some(url) => redirect(Uri(url.toString()), StatusCodes.PermanentRedirect)
-          case None      => complete(StatusCodes.NotFound, "Short URL not found.")
-        }
-      }
-
-  def startServer(): Unit = {
-    val server = Http().newServerAt("localhost", 8080).bind(route)
-
-    println("Server online. Press RETURN to stop.")
-    scala.io.StdIn.readLine()
-
-    server
-      .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
-  }
-}
-
-object Main extends App {
-  ApiService.startServer()
 }

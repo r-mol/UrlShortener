@@ -22,6 +22,7 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       scalaTest,
       mongoScalaDriver,
-      akkaHttp
+      akkaHttp,
+      "com.typesafe" % "config" % "1.4.1"
     )
   )
