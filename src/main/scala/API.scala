@@ -2,20 +2,22 @@ package urlshortener
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import akka.http.scaladsl.server.Directives._
 import scala.concurrent.duration.Duration
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContextExecutor}
 
 
 class ApiService(serverAddress: String, serverPort: Int, us: UrlShortener) {
-
   implicit val system: ActorSystem = ActorSystem("url-shortener-system")
 
-  val swaggerDocService = new SwaggerDocService()
-  val my = new MyRoutes(serverAddress, serverPort, us)
+  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
+  val routes =
+    cors() (new MyRoutes(serverAddress, serverPort, us).route ~
+     new SwaggerDocService().routes)
 
-  val serverFuture = Http().newServerAt(serverAddress, serverPort).bind(swaggerDocService.routes ~ my.route)
+  val serverFuture = Http().newServerAt(serverAddress, serverPort).bind(routes)
   val serverBinding = Await.result(serverFuture, Duration.Inf)
 
   println(
