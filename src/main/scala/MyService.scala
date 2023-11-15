@@ -14,7 +14,7 @@ import akka.http.scaladsl.model.StatusCodes
 
 
 @Path("/")
-class MyRoutes (serverAddress: String, serverPort: Int, us: UrlShortener)extends Directives {
+class MyRoutes (serverPort: Int, us: UrlShortener)extends Directives {
   def deleteResultMessage(result: DeleteResult): String = {
     if (result.wasAcknowledged()) {
       s"Deleted ${result.getDeletedCount} document(s)."
@@ -42,7 +42,7 @@ class MyRoutes (serverAddress: String, serverPort: Int, us: UrlShortener)extends
       parameter("url") { urlString =>
         complete {
           val short = us.shortenUrl(new URL(urlString))
-          s"http://$serverAddress:$serverPort/$short\n"
+          s"http://localhost:$serverPort/redirect/$short\n"
         }
       }
     }

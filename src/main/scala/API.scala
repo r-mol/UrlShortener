@@ -14,7 +14,7 @@ class ApiService(serverAddress: String, serverPort: Int, us: UrlShortener) {
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   val routes =
-    cors() (new MyRoutes(serverAddress, serverPort, us).route ~
+    cors() (new MyRoutes(serverPort, us).route ~
      new SwaggerDocService().routes)
 
   val serverFuture = Http().newServerAt(serverAddress, serverPort).bind(routes)
