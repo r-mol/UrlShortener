@@ -15,7 +15,7 @@ class ApiService(serverAddress: String, serverPort: Int, us: UrlShortener) {
 
   val routes =
     cors() (new MyRoutes(serverPort, us).route ~
-     new SwaggerDocService().routes)
+     new SwaggerDocService(serverPort).routes)
 
   val serverFuture = Http().newServerAt(serverAddress, serverPort).bind(routes)
   val serverBinding = Await.result(serverFuture, Duration.Inf)
