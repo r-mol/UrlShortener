@@ -6,12 +6,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{DELETE, GET, Path, Produces}
-import java.net.URL
 import com.mongodb.client.result.DeleteResult
-
+import scala.concurrent.Future
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.StatusCodes
-
+import java.net.MalformedURLException
+import scala.util.{Failure, Success}
 
 @Path("/")
 class MyRoutes (serverPort: Int, us: UrlShortener)extends Directives {
@@ -40,9 +40,16 @@ class MyRoutes (serverPort: Int, us: UrlShortener)extends Directives {
   def getShortRoute: Route = {
     get {
       parameter("url") { urlString =>
-        complete {
-          val short = us.shortenUrl(new URL(urlString))
-          s"http://localhost:$serverPort/redirect/$short\n"
+        val shortFuture = Future.fromTry(us.shortenUrl(urlString))
+        onComplete(shortFuture) {
+          case Success(short) =>
+            complete(s"http://localhost:$serverPort/redirect/$short\n")
+          case Failure(ex) => ex match {
+            case _: MalformedURLException =>
+              complete(StatusCodes.BadRequest, "Invalid URL")
+            case _ =>
+              complete(StatusCodes.InternalServerError, "Error while shortening URL")
+          }
         }
       }
     }
@@ -98,7 +105,7 @@ class MyRoutes (serverPort: Int, us: UrlShortener)extends Directives {
 
   @GET
   @Path("redirect/{short}")
-  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.TEXT_PLAIN))
   @Operation(
     summary = "Redirect by short URL",
     description = "Redirect to the original URL using the short URL",
@@ -107,15 +114,25 @@ class MyRoutes (serverPort: Int, us: UrlShortener)extends Directives {
     ),
     responses = Array(
       new ApiResponse(responseCode = "302", description = "Redirect response"),
+      new ApiResponse(responseCode = "400", description = "Bad Request"),
       new ApiResponse(responseCode = "404", description = "Not found")
     )
   )
   def redirectRoute: Route = {
     path("redirect" / Segment) { short =>
       get {
-        us.getUrl(short) match {
-          case Some(url) => redirect(Uri(url.toString()), StatusCodes.PermanentRedirect)
-          case None      => complete(StatusCodes.NotFound, "Short URL not found.")
+        val urlFuture = Future.fromTry(us.getUrl(short))
+        onComplete(urlFuture) {
+          case Success(Some(url)) =>
+            redirect(Uri(url.toString), StatusCodes.PermanentRedirect)
+          case Success(None) =>
+            complete(StatusCodes.NotFound, "Short URL not found")
+          case Failure(ex) => ex match {
+            case _: IllegalArgumentException =>
+              complete(StatusCodes.BadRequest, "Invalid short string")
+            case _ =>
+              complete(StatusCodes.InternalServerError, "Error while getting original URL")
+          }
         }
       }
     }

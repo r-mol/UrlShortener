@@ -11,6 +11,10 @@ import scala.util.Random
 import java.net.URL
 import com.typesafe.scalalogging.LazyLogging
 
+import java.net.MalformedURLException
+import scala.util.{Failure, Success, Try}
+
+
 class UrlShortener(uri: String, dbName: String, collection: String) extends LazyLogging {
   val mongoClient: MongoClient = MongoClient(uri)
   val database: MongoDatabase = mongoClient.getDatabase(dbName)
@@ -18,7 +22,21 @@ class UrlShortener(uri: String, dbName: String, collection: String) extends Lazy
 
   private val allowedChars = (('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9')).toList
 
-  def shortenUrl(url: URL): String = {
+  def shortenUrl(url: String): Try[String] = {
+    Try(new URL(url)) match {
+      case Success(urlObj) => Try(shortenUrl2(urlObj))
+      case Failure(ex) => ex match {
+        case _: MalformedURLException => 
+          logger.error(s"Invalid URL: $url")
+          Failure(new MalformedURLException("Invalid URL"))
+        case _ => 
+          logger.error(s"Unknown error while shortening URL: $url", ex)
+          Failure(ex)
+      }
+    }
+  }
+
+  def shortenUrl2(url: URL): String = {
     getDocumentByUrl(url.toString()).map(_.getString("short")).getOrElse {
       val short = getNextUniqueKey
       val mappingToInsert = Document("_id" -> new ObjectId(), "short" -> short, "url" -> url.toString())
@@ -28,7 +46,18 @@ class UrlShortener(uri: String, dbName: String, collection: String) extends Lazy
     }
   }
 
-  def getUrl(short: String): Option[URL] = {
+  def getUrl(short: String): Try[Option[URL]] = {
+    Try {
+      if (short.matches("^[a-zA-Z0-9]*$"))
+        getUrl2(short)
+      else {
+        logger.error(s"Invalid short string: $short")
+        throw new IllegalArgumentException("Invalid short string")
+      }
+    }
+  }
+
+  def getUrl2(short: String): Option[URL] = {
     val url = getDocumentByShort(short).map(document => new URL(document.getString("url")))
     logger.info(s"Get URL by short: $short -> result: ${url.getOrElse("Not found")}")
     url
