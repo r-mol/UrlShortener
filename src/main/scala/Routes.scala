@@ -1,20 +1,19 @@
 package urlshortener
 
 import akka.http.scaladsl.server.{Directives, Route}
+import akka.http.scaladsl.model.{Uri, StatusCodes}
+import com.mongodb.client.result.DeleteResult
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{DELETE, GET, Path, Produces}
-import com.mongodb.client.result.DeleteResult
-import scala.concurrent.Future
-import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.StatusCodes
 import java.net.MalformedURLException
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 @Path("/")
-class Routes (serverPort: Int, us: UrlShortener)extends Directives {
+class Routes(serverPort: Int, us: UrlShortener) extends Directives {
   def deleteResultMessage(result: DeleteResult): String = {
     if (result.wasAcknowledged()) {
       s"Deleted ${result.getDeletedCount} document(s)."
@@ -44,12 +43,13 @@ class Routes (serverPort: Int, us: UrlShortener)extends Directives {
         onComplete(shortFuture) {
           case Success(short) =>
             complete(s"http://localhost:$serverPort/redirect/$short\n")
-          case Failure(ex) => ex match {
-            case _: MalformedURLException =>
-              complete(StatusCodes.BadRequest, "Invalid URL")
-            case _ =>
-              complete(StatusCodes.InternalServerError, "Error while shortening URL")
-          }
+          case Failure(ex) =>
+            ex match {
+              case _: MalformedURLException =>
+                complete(StatusCodes.BadRequest, "Invalid URL")
+              case _ =>
+                complete(StatusCodes.InternalServerError, "Error while shortening URL")
+            }
         }
       }
     }
@@ -127,12 +127,13 @@ class Routes (serverPort: Int, us: UrlShortener)extends Directives {
             redirect(Uri(url.toString), StatusCodes.PermanentRedirect)
           case Success(None) =>
             complete(StatusCodes.NotFound, "Short URL not found")
-          case Failure(ex) => ex match {
-            case _: IllegalArgumentException =>
-              complete(StatusCodes.BadRequest, "Invalid short string")
-            case _ =>
-              complete(StatusCodes.InternalServerError, "Error while getting original URL")
-          }
+          case Failure(ex) =>
+            ex match {
+              case _: IllegalArgumentException =>
+                complete(StatusCodes.BadRequest, "Invalid short string")
+              case _ =>
+                complete(StatusCodes.InternalServerError, "Error while getting original URL")
+            }
         }
       }
     }

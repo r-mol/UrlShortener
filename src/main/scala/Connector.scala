@@ -1,13 +1,11 @@
 package urlshortener
 
-import org.mongodb.scala.result.InsertOneResult
-import org.mongodb.scala.model.Filters._
+import com.typesafe.scalalogging.LazyLogging
+import org.mongodb.scala.{MongoCollection, Document}
+import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.result.{InsertOneResult, DeleteResult}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-
-import org.mongodb.scala.result.DeleteResult
-import org.mongodb.scala._
-import com.typesafe.scalalogging.LazyLogging
 
 class MongoConnector(val urlCollection: MongoCollection[Document]) extends LazyLogging {
   def getDocumentByUrl(url: String): Option[Document] = {

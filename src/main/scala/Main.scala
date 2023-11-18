@@ -1,7 +1,7 @@
 package urlshortener
 
 import com.typesafe.config.ConfigFactory
-import org.mongodb.scala._
+import org.mongodb.scala.{MongoClient, MongoCollection, MongoDatabase, Document}
 
 object Main extends App {
   val config = ConfigFactory.load()

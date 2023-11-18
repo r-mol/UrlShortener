@@ -1,14 +1,12 @@
 package urlshortener
 
+import com.mongodb.client.result.{InsertOneResult, DeleteResult}
+import org.mongodb.scala.{MongoCollection, Document}
+import org.mongodb.scala.bson.BsonInt32
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalamock.scalatest.MockFactory
-import org.mongodb.scala._
-import java.net.MalformedURLException
-import com.mongodb.client.result.InsertOneResult
-import org.mongodb.scala.bson.BsonInt32
-import java.net.URL
-import com.mongodb.client.result.DeleteResult
+import java.net.{MalformedURLException, URL}
 
 class UrlShortenerSpec extends AnyFlatSpec with Matchers with MockFactory {
   val connector = mock[MongoConnector]
@@ -64,7 +62,7 @@ class UrlShortenerSpec extends AnyFlatSpec with Matchers with MockFactory {
     assert(result.failed.get.isInstanceOf[MalformedURLException])
   }
 
-    "getUrl" should "return the URL for a valid short string" in {
+  "Get Url" should "return the URL for a valid short string" in {
     val short = "validShort"
     val url = new URL("https://example.com")
 
@@ -74,9 +72,8 @@ class UrlShortenerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
     val result = shortener.getUrl(short)
 
-        assert(result.isSuccess)
-
-    //result should be(Success(Some(url)))
+    assert(result.isSuccess)
+    assert(result.get.get.equals(url))
   }
 
   it should "throw an IllegalArgumentException for an invalid short string" in {
@@ -84,8 +81,8 @@ class UrlShortenerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
     val result = shortener.getUrl(short)
 
-   assert(result.isFailure)
-  assert(result.failed.get.isInstanceOf[IllegalArgumentException])
+    assert(result.isFailure)
+    assert(result.failed.get.isInstanceOf[IllegalArgumentException])
   }
 
   it should "throw an IllegalArgumentException for an empty short string" in {

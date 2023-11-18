@@ -14,5 +14,5 @@ trait SwaggerHttpWithUiService extends SwaggerHttpService {
   override val routes = super.routes ~ swaggerUiRoute
 
   private def removeTrailingSlashIfNecessary(path: String): String =
-    if(path.endsWith("/")) removeTrailingSlashIfNecessary(path.substring(0, path.length - 1)) else path
+    if (path.endsWith("/")) removeTrailingSlashIfNecessary(path.substring(0, path.length - 1)) else path
 }

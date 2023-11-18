@@ -1,15 +1,12 @@
 package urlshortener
 
-import org.mongodb.scala.result.DeleteResult
-import org.mongodb.scala._
-import org.mongodb.scala.bson.ObjectId
-import scala.annotation.tailrec
-import scala.util.Random
-import java.net.URL
 import com.typesafe.scalalogging.LazyLogging
-
-import java.net.MalformedURLException
-import scala.util.{Failure, Success, Try}
+import java.net.{URL, MalformedURLException}
+import org.mongodb.scala.Document
+import org.mongodb.scala.bson.ObjectId
+import org.mongodb.scala.result.DeleteResult
+import scala.annotation.tailrec
+import scala.util.{Try, Success, Failure, Random}
 
 class UrlShortener(val mongoConnector: MongoConnector) extends LazyLogging {
   private val allowedChars = (('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9')).toList
@@ -40,7 +37,7 @@ class UrlShortener(val mongoConnector: MongoConnector) extends LazyLogging {
 
   def getUrl(short: String): Try[Option[URL]] = {
     Try {
-      if (short.matches("^(?=.*[a-zA-Z0-9])\\w*$")) {
+      if (short.matches("^(?=.*[a-zA-Z0-9])[a-zA-Z0-9]*$")) {
         val url = mongoConnector.getDocumentByShort(short).map(document => new URL(document.getString("url")))
         logger.info(s"Get URL by short: $short -> result: ${url.getOrElse("Not found")}")
         url
@@ -80,9 +77,9 @@ class UrlShortener(val mongoConnector: MongoConnector) extends LazyLogging {
     }
 
     val count = mongoConnector.countDocuments()
-
     val initialLength =
       math.max(1, math.ceil(math.log(count.toDouble + 1) / math.log(allowedChars.size.toDouble)).toInt)
+
     loop(generateRandomString(initialLength), initialLength)
   }
 
@@ -95,9 +92,11 @@ class UrlShortener(val mongoConnector: MongoConnector) extends LazyLogging {
   private def generateRandomString(length: Int): String = {
     val random = new Random()
     val sb = new StringBuilder(length)
+
     for (_ <- 1 to length) {
       sb.append(allowedChars(random.nextInt(allowedChars.size)))
     }
+
     sb.toString()
   }
 }
