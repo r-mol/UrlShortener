@@ -14,7 +14,7 @@ import java.net.MalformedURLException
 import scala.util.{Failure, Success}
 
 @Path("/")
-class MyRoutes (serverPort: Int, us: UrlShortener)extends Directives {
+class Routes (serverPort: Int, us: UrlShortener)extends Directives {
   def deleteResultMessage(result: DeleteResult): String = {
     if (result.wasAcknowledged()) {
       s"Deleted ${result.getDeletedCount} document(s)."

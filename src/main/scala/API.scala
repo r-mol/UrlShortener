@@ -8,14 +8,13 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContextExecutor}
 
 
-class ApiService(serverAddress: String, serverPort: Int, us: UrlShortener) {
+class ApiService(serverAddress: String, serverPort: Int, urlShortener: UrlShortener) {
   implicit val system: ActorSystem = ActorSystem("url-shortener-system")
 
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   val routes =
-    cors() (new MyRoutes(serverPort, us).route ~
-     new SwaggerDocService(serverPort).routes)
+    cors() (new Routes(serverPort, urlShortener).route ~ new SwaggerDocService(serverPort).routes)
 
   val serverFuture = Http().newServerAt(serverAddress, serverPort).bind(routes)
   val serverBinding = Await.result(serverFuture, Duration.Inf)
